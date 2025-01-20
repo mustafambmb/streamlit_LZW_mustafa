@@ -1,5 +1,7 @@
 streamlit==1.18.0
 pandas==1.3.3
-numpy==1.21.6  # Python 3.12 ile uyumlu bir numpy sürümü
-setuptools>=75.8.0  # setuptools en son sürüm
-wheel>=0.45.1
+numpy==1.19.3
+setuptools>=51.0.0
+wheel>=0.36.0
+Cython<3,>=0.29.21
+

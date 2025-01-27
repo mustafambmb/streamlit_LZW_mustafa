@@ -1,12 +1,8 @@
 import sys
 import io
 import time
-import struct
 import streamlit as st
 from struct import pack, unpack
-
-
-import time
 
 # Türkçe karakterlerin İngilizce karşılıklarıyla değiştirilmesi
 def turkce_to_ingilizce(text):
@@ -92,7 +88,6 @@ def decoding(op, reverse_replacements, initial_dict_size=256):
     return final_result, elapsed_time
 
 
-
 # Function to convert data to downloadable format
 def convert_to_downloadable_file(data, filename):
     if isinstance(data, list):  # if data is a list (like compressed data)
@@ -117,7 +112,7 @@ def main():
 
     if uploaded_file is not None:
         text_data = uploaded_file.read().decode("utf-8")  # Decoding from bytes to string
-        text_data = turkce_to_ingilizce(text_data)  # Convert Turkish characters to English
+        text_data, reverse_replacements = turkce_to_ingilizce(text_data)  # Convert Turkish characters to English
 
         # Display the uploaded text (first 1000 characters)
         st.text_area("Uploaded Text", text_data[:1000] + "...", height=300)
@@ -139,7 +134,7 @@ def main():
 
     # Compression button
     if st.button("Compress the Text File"):
-        compressed_output, compression_time = encoding(text_data, initial_dict_size, max_table_size, reset_threshold)
+        compressed_output, compression_time, reverse_replacements = encoding(text_data, initial_dict_size, max_table_size, reset_threshold)
         compressed_size = len(str(compressed_output))  # Size of compressed output (as a string)
         compression_ratio = original_size / compressed_size if compressed_size > 0 else 0
 
@@ -155,7 +150,7 @@ def main():
 
     # Decompression button
     if st.button("Decompress the Text File") and st.session_state['compressed_text_output'] is not None:
-        decompressed_text, decompression_time = decoding(st.session_state['compressed_text_output'], initial_dict_size)
+        decompressed_text, decompression_time = decoding(st.session_state['compressed_text_output'], reverse_replacements, initial_dict_size)
         st.success(f"Text decompression completed in {decompression_time:.2f} ms")
 
         decompressed_file_txt = convert_to_downloadable_file(decompressed_text, "decompressed_text.txt")
@@ -177,7 +172,7 @@ def main():
 
     for params in param_combinations:
         if st.button(f"Compress with {params}"):
-            compressed_output, compression_time = encoding(text_data, **params)
+            compressed_output, compression_time, reverse_replacements = encoding(text_data, **params)
             compressed_size = len(str(compressed_output))
             compression_ratio = original_size / compressed_size if compressed_size > 0 else 0
             st.write(f"Compression Parameters: {params}")

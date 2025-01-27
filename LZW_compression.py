@@ -1,8 +1,10 @@
 import sys
 import io
 import time
+import struct
 import streamlit as st
 from struct import pack, unpack
+
 
 # Türkçe karakterlerin İngilizce karşılıklarıyla değiştirilmesi
 def turkce_to_ingilizce(text):
@@ -14,23 +16,15 @@ def turkce_to_ingilizce(text):
         'ş': 's', 'Ş': 'S',
         'ü': 'u', 'Ü': 'U'
     }
-    # Orijinal metindeki karakterleri de saklayacak bir sözlük
-    reverse_replacements = {v: k for k, v in replacements.items()}
-    
-    translated_text = ""
-    for char in text:
-        translated_text += replacements.get(char, char)  # Türkçe karakteri İngilizce'ye çevir
-    
-    return translated_text, reverse_replacements
+    for tr_char, en_char in replacements.items():
+        text = text.replace(tr_char, en_char)
+    return text
+
 
 # LZW Encoding Function
 def encoding(s1, initial_dict_size=256, max_table_size=4096, reset_threshold=None):
     start_time = time.perf_counter()  # Use perf_counter for high-resolution timing
     table = {chr(i): i for i in range(initial_dict_size)}
-    
-    # Türkçe karakterleri İngilizce'ye çevir
-    s1, reverse_replacements = turkce_to_ingilizce(s1)
-    
     p = ""
     code = initial_dict_size
     output_code = []
@@ -56,11 +50,11 @@ def encoding(s1, initial_dict_size=256, max_table_size=4096, reset_threshold=Non
 
     end_time = time.perf_counter()
     elapsed_time = (end_time - start_time) * 1000  # Convert to milliseconds
-    return output_code, elapsed_time, reverse_replacements
+    return output_code, elapsed_time
 
 
 # LZW Decoding Function
-def decoding(op, reverse_replacements, initial_dict_size=256):
+def decoding(op, initial_dict_size=256):
     start_time = time.perf_counter()  # Use perf_counter for high-resolution timing
     table = {i: chr(i) for i in range(initial_dict_size)}
     old = op[0]
@@ -80,12 +74,9 @@ def decoding(op, reverse_replacements, initial_dict_size=256):
         count += 1
         old = n
 
-    # Geri dönüşüm işlemi, İngilizce karşılıkları Türkçe'ye çevirme
-    final_result = "".join(reverse_replacements.get(char, char) for char in result)
-
     end_time = time.perf_counter()
     elapsed_time = (end_time - start_time) * 1000  # Convert to milliseconds
-    return final_result, elapsed_time
+    return result, elapsed_time
 
 
 # Function to convert data to downloadable format
@@ -112,7 +103,7 @@ def main():
 
     if uploaded_file is not None:
         text_data = uploaded_file.read().decode("utf-8")  # Decoding from bytes to string
-        text_data, reverse_replacements = turkce_to_ingilizce(text_data)  # Convert Turkish characters to English
+        text_data = turkce_to_ingilizce(text_data)  # Convert Turkish characters to English
 
         # Display the uploaded text (first 1000 characters)
         st.text_area("Uploaded Text", text_data[:1000] + "...", height=300)
@@ -134,7 +125,7 @@ def main():
 
     # Compression button
     if st.button("Compress the Text File"):
-        compressed_output, compression_time, reverse_replacements = encoding(text_data, initial_dict_size, max_table_size, reset_threshold)
+        compressed_output, compression_time = encoding(text_data, initial_dict_size, max_table_size, reset_threshold)
         compressed_size = len(str(compressed_output))  # Size of compressed output (as a string)
         compression_ratio = original_size / compressed_size if compressed_size > 0 else 0
 
@@ -150,7 +141,7 @@ def main():
 
     # Decompression button
     if st.button("Decompress the Text File") and st.session_state['compressed_text_output'] is not None:
-        decompressed_text, decompression_time = decoding(st.session_state['compressed_text_output'], reverse_replacements, initial_dict_size)
+        decompressed_text, decompression_time = decoding(st.session_state['compressed_text_output'], initial_dict_size)
         st.success(f"Text decompression completed in {decompression_time:.2f} ms")
 
         decompressed_file_txt = convert_to_downloadable_file(decompressed_text, "decompressed_text.txt")
@@ -172,7 +163,7 @@ def main():
 
     for params in param_combinations:
         if st.button(f"Compress with {params}"):
-            compressed_output, compression_time, reverse_replacements = encoding(text_data, **params)
+            compressed_output, compression_time = encoding(text_data, **params)
             compressed_size = len(str(compressed_output))
             compression_ratio = original_size / compressed_size if compressed_size > 0 else 0
             st.write(f"Compression Parameters: {params}")
